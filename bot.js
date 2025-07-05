@@ -7,19 +7,15 @@ const token = process.env.BOT_TOKEN;
 const url = process.env.WEBHOOK_URL;
 const port = process.env.PORT || 3000;
 
+const bot = new TelegramBot(token);
+bot.setWebHook(`${url}/bot${token}`);
+
 const app = express();
 app.use(express.json());
-
-// Создаем Telegram бота без порта, только URL вебхука
-const bot = new TelegramBot(token);
-bot.setWebHook(`https://quizing-telegram-bot.onrender.com/bot${token}`);
-
-
 app.post(`/bot${token}`, (req, res) => {
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
-
 app.get('/', (req, res) => res.send('🤖 Quiz Bot running!'));
 
 let users = {};
@@ -30,8 +26,13 @@ bot.onText(/\/start/, msg => {
 
   bot.sendMessage(chatId, 'Choose your level:', {
     reply_markup: {
-      keyboard: [['Beginner'], ['Intermediate'], ['Advanced']],
-      one_time_keyboard: true,
+      keyboard: [
+        ['Beginner'],
+        ['Intermediate'],
+        ['Advanced'],
+        ['/start']
+      ],
+      one_time_keyboard: false,
       resize_keyboard: true
     }
   });
@@ -45,7 +46,6 @@ bot.on('message', msg => {
   if (!user) return;
   const levels = ['Beginner', 'Intermediate', 'Advanced'];
 
-  // выбор уровня
   if (levels.includes(text)) {
     const level = text.toLowerCase();
     db.all('SELECT * FROM questions WHERE level = ?', [level], (err, rows) => {
@@ -58,11 +58,19 @@ bot.on('message', msg => {
     return;
   }
 
-  // обработка ответа
   const current = user.questions[user.index];
   if (current) {
     const answerIndex = [current.option1, current.option2, current.option3, current.option4].indexOf(text);
-    if (answerIndex + 1 === current.correct) user.score++;
+    if (answerIndex === -1) return;
+
+    if (answerIndex + 1 === current.correct) {
+      user.score++;
+      bot.sendMessage(chatId, `✅ Correct!`);
+    } else {
+      const correctOption = current[`option${current.correct}`];
+      bot.sendMessage(chatId, `❌ Wrong! Correct answer: ${correctOption}`);
+    }
+
     user.index++;
 
     if (user.index < user.questions.length) {
@@ -79,8 +87,12 @@ function sendQuestion(chatId) {
   const q = user.questions[user.index];
   bot.sendMessage(chatId, q.question, {
     reply_markup: {
-      keyboard: [[q.option1, q.option2], [q.option3, q.option4]],
-      one_time_keyboard: true,
+      keyboard: [
+        [q.option1, q.option2],
+        [q.option3, q.option4],
+        ['/start']
+      ],
+      one_time_keyboard: false,
       resize_keyboard: true
     }
   });
