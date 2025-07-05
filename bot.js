@@ -5,7 +5,8 @@ const express = require('express');
 
 const token = process.env.BOT_TOKEN;
 const url = process.env.WEBHOOK_URL;
-const PORT = process.env.PORT || 10000;
+const port = process.env.PORT || 3000;
+
 
 const bot = new TelegramBot(token, { webHook: { port } });
 bot.setWebHook(`${url}/bot${token}`);
@@ -82,6 +83,6 @@ function sendQuestion(chatId) {
   });
 }
 
-app.listen(PORT, () => {
-console.log(`✅ Server running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
