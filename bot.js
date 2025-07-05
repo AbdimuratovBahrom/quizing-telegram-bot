@@ -12,7 +12,8 @@ app.use(express.json());
 
 // Создаем Telegram бота без порта, только URL вебхука
 const bot = new TelegramBot(token);
-bot.setWebHook(`${url}/bot${token}`);
+bot.setWebHook(`https://quizing-telegram-bot.onrender.com/bot${token}`);
+
 
 app.post(`/bot${token}`, (req, res) => {
   bot.processUpdate(req.body);
