@@ -1,3 +1,4 @@
 .env
-*.sql
+questions.sql
+
 node_modules/
