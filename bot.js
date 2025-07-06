@@ -6,9 +6,8 @@ const path = require('path');
 
 const token = process.env.BOT_TOKEN;
 const url = process.env.WEBHOOK_URL;
-const port = process.env.PORT || 10000;
 
-const bot = new TelegramBot(token, { webHook: { port } });
+const bot = new TelegramBot(token);
 bot.setWebHook(`${url}/bot${token}`);
 
 const app = express();
@@ -56,7 +55,7 @@ bot.on('message', msg => {
     const level = text.toLowerCase();
     db.all('SELECT * FROM questions WHERE level = ?', [level], (err, rows) => {
       if (err || rows.length === 0) return bot.sendMessage(chatId, 'No questions found!');
-      user.questions = rows;
+      user.questions = rows.slice(0, 20); // Берем 20 вопросов
       user.index = 0;
       user.score = 0;
       sendQuestion(chatId);
@@ -101,5 +100,5 @@ function sendQuestion(chatId) {
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
