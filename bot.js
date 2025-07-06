@@ -8,7 +8,7 @@ const url = process.env.WEBHOOK_URL;
 const port = process.env.PORT || 10000;
 
 const bot = new TelegramBot(token, { webHook: { port } });
-bot.setWebHook(`https://quizing-telegram-bot.onrender.com/bot${token}`);
+bot.setWebHook(`${url}/bot${token}`);
 
 const app = express();
 app.use(express.json());
@@ -29,6 +29,11 @@ function sendFeedback(chatId, isCorrect, correctAnswer = '') {
 
 bot.onText(/\/start/, msg => {
   const chatId = msg.chat.id;
+  if (msg.chat.type !== 'private') {
+    bot.sendMessage(chatId, 'Пожалуйста, начните квиз в личных сообщениях со мной.');
+    return;
+  }
+
   users[chatId] = { score: 0, index: 0, questions: [] };
 
   bot.sendMessage(chatId, 'Choose your level:', {
@@ -44,15 +49,18 @@ bot.on('message', msg => {
   const chatId = msg.chat.id;
   const text = msg.text;
   const user = users[chatId];
-  if (!user) return;
+
+  if (msg.chat.type !== 'private') return;
 
   const levels = ['Beginner', 'Intermediate', 'Advanced'];
+
+  if (!user) return;
 
   if (levels.includes(text)) {
     const level = text.toLowerCase();
     db.all('SELECT * FROM questions WHERE level = ?', [level], (err, rows) => {
       if (err || rows.length === 0) return bot.sendMessage(chatId, 'No questions found!');
-      user.questions = rows.slice(0, 20); // ограничим до 20 вопросов
+      user.questions = rows;
       user.index = 0;
       user.score = 0;
       sendQuestion(chatId);
@@ -87,6 +95,8 @@ bot.on('message', msg => {
 
 function sendQuestion(chatId) {
   const user = users[chatId];
+  if (!user || !user.questions || user.index >= user.questions.length) return;
+
   const q = user.questions[user.index];
   bot.sendMessage(chatId, q.question, {
     reply_markup: {
@@ -99,3 +109,8 @@ function sendQuestion(chatId) {
     }
   });
 }
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
