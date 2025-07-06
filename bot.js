@@ -2,12 +2,12 @@ require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const db = require('./db');
 const express = require('express');
-const path = require('path');
 
 const token = process.env.BOT_TOKEN;
 const url = process.env.WEBHOOK_URL;
+const port = process.env.PORT || 10000;
 
-const bot = new TelegramBot(token);
+const bot = new TelegramBot(token, { webHook: { port } });
 bot.setWebHook(`${url}/bot${token}`);
 
 const app = express();
@@ -21,13 +21,10 @@ app.get('/', (req, res) => res.send('🤖 Quiz Bot running!'));
 let users = {};
 
 function sendFeedback(chatId, isCorrect, correctAnswer = '') {
-  const audioPath = path.join(__dirname, 'sounds', isCorrect ? 'correct.ogg' : 'wrong.ogg');
   const message = isCorrect
     ? '✅ Correct!'
     : `❌ Wrong! Correct answer: ${correctAnswer}`;
-  bot.sendMessage(chatId, message).then(() => {
-    bot.sendAudio(chatId, audioPath);
-  });
+  bot.sendMessage(chatId, message);
 }
 
 bot.onText(/\/start/, msg => {
@@ -55,7 +52,7 @@ bot.on('message', msg => {
     const level = text.toLowerCase();
     db.all('SELECT * FROM questions WHERE level = ?', [level], (err, rows) => {
       if (err || rows.length === 0) return bot.sendMessage(chatId, 'No questions found!');
-      user.questions = rows.slice(0, 20); // Берем 20 вопросов
+      user.questions = rows;
       user.index = 0;
       user.score = 0;
       sendQuestion(chatId);
@@ -76,7 +73,12 @@ bot.on('message', msg => {
       setTimeout(() => sendQuestion(chatId), 1000);
     } else {
       setTimeout(() => {
-        bot.sendMessage(chatId, `✅ Quiz finished! Your score: ${user.score}/${user.questions.length}`);
+        bot.sendMessage(chatId, `✅ Quiz finished! Your score: ${user.score}/${user.questions.length}`, {
+          reply_markup: {
+            keyboard: [['/start']],
+            resize_keyboard: true
+          }
+        });
         delete users[chatId];
       }, 1000);
     }
