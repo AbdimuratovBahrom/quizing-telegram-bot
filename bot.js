@@ -8,7 +8,7 @@ const url = process.env.WEBHOOK_URL;
 const port = process.env.PORT || 10000;
 
 const bot = new TelegramBot(token, { webHook: { port } });
-bot.setWebHook(`${url}/bot${token}`);
+bot.setWebHook(`https://quizing-telegram-bot.onrender.com/bot${token}`);
 
 const app = express();
 app.use(express.json());
