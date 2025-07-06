@@ -7,15 +7,20 @@ const token = process.env.BOT_TOKEN;
 const url = process.env.WEBHOOK_URL;
 const port = process.env.PORT || 10000;
 
-const bot = new TelegramBot(token, { webHook: { port } });
+// Инициализация бота без прослушивания порта (Render сам запускает сервер)
+const bot = new TelegramBot(token);
 bot.setWebHook(`${url}/bot${token}`);
 
 const app = express();
 app.use(express.json());
+
+// Обработка входящих обновлений от Telegram
 app.post(`/bot${token}`, (req, res) => {
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
+
+// Проверка работоспособности
 app.get('/', (req, res) => res.send('🤖 Quiz Bot running!'));
 
 let users = {};
@@ -29,6 +34,8 @@ function sendFeedback(chatId, isCorrect, correctAnswer = '') {
 
 bot.onText(/\/start/, msg => {
   const chatId = msg.chat.id;
+
+  // Отклонить команды из групп
   if (msg.chat.type !== 'private') {
     bot.sendMessage(chatId, 'Пожалуйста, начните квиз в личных сообщениях со мной.');
     return;
@@ -48,10 +55,10 @@ bot.onText(/\/start/, msg => {
 bot.on('message', msg => {
   const chatId = msg.chat.id;
   const text = msg.text;
-  const user = users[chatId];
 
   if (msg.chat.type !== 'private') return;
 
+  const user = users[chatId];
   const levels = ['Beginner', 'Intermediate', 'Advanced'];
 
   if (!user) return;
@@ -59,7 +66,8 @@ bot.on('message', msg => {
   if (levels.includes(text)) {
     const level = text.toLowerCase();
     db.all('SELECT * FROM questions WHERE level = ?', [level], (err, rows) => {
-      if (err || rows.length === 0) return bot.sendMessage(chatId, 'No questions found!');
+      if (err || rows.length === 0)
+        return bot.sendMessage(chatId, 'No questions found!');
       user.questions = rows;
       user.index = 0;
       user.score = 0;
@@ -110,7 +118,6 @@ function sendQuestion(chatId) {
   });
 }
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
