@@ -6,7 +6,7 @@ const path = require('path');
 
 const token = process.env.BOT_TOKEN;
 const url = process.env.WEBHOOK_URL;
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 10000;
 
 const bot = new TelegramBot(token, { webHook: { port } });
 bot.setWebHook(`${url}/bot${token}`);
