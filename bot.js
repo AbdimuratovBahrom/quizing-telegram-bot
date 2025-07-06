@@ -99,6 +99,7 @@ function sendQuestion(chatId) {
   });
 }
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+console.log(`Server is running on port ${PORT}`);
 });
