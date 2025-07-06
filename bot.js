@@ -7,23 +7,20 @@ const token = process.env.BOT_TOKEN;
 const url = process.env.WEBHOOK_URL;
 const port = process.env.PORT || 10000;
 
-// Инициализация бота без прослушивания порта (Render сам запускает сервер)
-const bot = new TelegramBot(token);
+const bot = new TelegramBot(token, { webHook: { port } });
 bot.setWebHook(`${url}/bot${token}`);
 
 const app = express();
 app.use(express.json());
 
-// Обработка входящих обновлений от Telegram
 app.post(`/bot${token}`, (req, res) => {
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
 
-// Проверка работоспособности
-app.get('/', (req, res) => res.send('🤖 Quiz Bot running!'));
+app.get('/', (req, res) => res.send('🤖 Quiz Bot is running!'));
 
-let users = {};
+const users = {};
 
 function sendFeedback(chatId, isCorrect, correctAnswer = '') {
   const message = isCorrect
@@ -32,12 +29,11 @@ function sendFeedback(chatId, isCorrect, correctAnswer = '') {
   bot.sendMessage(chatId, message);
 }
 
-bot.onText(/\/start/, msg => {
+bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
 
-  // Отклонить команды из групп
   if (msg.chat.type !== 'private') {
-    bot.sendMessage(chatId, 'Пожалуйста, начните квиз в личных сообщениях со мной.');
+    bot.sendMessage(chatId, 'Пожалуйста, используйте бота в личных сообщениях.');
     return;
   }
 
@@ -47,27 +43,28 @@ bot.onText(/\/start/, msg => {
     reply_markup: {
       keyboard: [['Beginner'], ['Intermediate'], ['Advanced'], ['/start']],
       one_time_keyboard: true,
-      resize_keyboard: true
-    }
+      resize_keyboard: true,
+    },
   });
 });
 
-bot.on('message', msg => {
+bot.on('message', (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text;
+  const user = users[chatId];
 
   if (msg.chat.type !== 'private') return;
-
-  const user = users[chatId];
-  const levels = ['Beginner', 'Intermediate', 'Advanced'];
-
   if (!user) return;
+
+  const levels = ['Beginner', 'Intermediate', 'Advanced'];
 
   if (levels.includes(text)) {
     const level = text.toLowerCase();
     db.all('SELECT * FROM questions WHERE level = ?', [level], (err, rows) => {
-      if (err || rows.length === 0)
-        return bot.sendMessage(chatId, 'No questions found!');
+      if (err || rows.length === 0) {
+        bot.sendMessage(chatId, 'No questions found!');
+        return;
+      }
       user.questions = rows;
       user.index = 0;
       user.score = 0;
@@ -78,8 +75,14 @@ bot.on('message', msg => {
 
   const current = user.questions[user.index];
   if (current) {
-    const answerIndex = [current.option1, current.option2, current.option3, current.option4].indexOf(text);
+    const answerIndex = [
+      current.option1,
+      current.option2,
+      current.option3,
+      current.option4,
+    ].indexOf(text);
     const isCorrect = answerIndex + 1 === current.correct;
+
     if (isCorrect) user.score++;
 
     sendFeedback(chatId, isCorrect, current[`option${current.correct}`]);
@@ -89,12 +92,16 @@ bot.on('message', msg => {
       setTimeout(() => sendQuestion(chatId), 1000);
     } else {
       setTimeout(() => {
-        bot.sendMessage(chatId, `✅ Quiz finished! Your score: ${user.score}/${user.questions.length}`, {
-          reply_markup: {
-            keyboard: [['/start']],
-            resize_keyboard: true
+        bot.sendMessage(
+          chatId,
+          `✅ Quiz finished! Your score: ${user.score}/${user.questions.length}`,
+          {
+            reply_markup: {
+              keyboard: [['/start']],
+              resize_keyboard: true,
+            },
           }
-        });
+        );
         delete users[chatId];
       }, 1000);
     }
@@ -111,10 +118,10 @@ function sendQuestion(chatId) {
       keyboard: [
         [q.option1, q.option2],
         [q.option3, q.option4],
-        ['/start']
+        ['/start'],
       ],
-      resize_keyboard: true
-    }
+      resize_keyboard: true,
+    },
   });
 }
 
